@@ -1,121 +1,81 @@
 import random
 import time
 
-
-class Card:
-    def __init__(self, id, value):
-        self.id = id
-        self.value = value      # Identificador del par (0–7)
-        self.revealed = False   # Está boca arriba
-        self.solved = False     # Ya se emparejó
-
-    def to_dict(self):
-        return {
-            "id": self.id,
-            "value": self.value if self.revealed or self.solved else None,
-            "revealed": self.revealed,
-            "solved": self.solved
-        }
-
-
-class MemoryBoard:
-    def __init__(self, size=16):
-        self.size = size
-        self.pairs = size // 2
-        self.cards = self._generate_cards()
-
-    def _generate_cards(self):
-        values = list(range(self.pairs)) * 2  # Ej: [0,0,1,1,...7,7]
-        random.shuffle(values)
-        return [Card(i, values[i]) for i in range(self.size)]
-
-    def to_dict(self):
-        return [card.to_dict() for card in self.cards]
-
-
 class MemoryGame:
     def __init__(self):
-        self.board = MemoryBoard()
-        self.first_pick = None
-        self.second_pick = None
-        self.moves = 0
-        self.solved_pairs = 0
-        self.game_over = False
-
-        # 🔥 TEMPORIZADOR
+        # Tiempo de inicio
         self.start_time = time.time()
-        self.end_time = None
 
-    def _get_elapsed_time(self):
-        if self.end_time:
-            return round(self.end_time - self.start_time, 2)
-        return round(time.time() - self.start_time, 2)
+        # Movimientos del jugador
+        self.moves = 0
 
-    def flip_card(self, card_id):
-        if self.game_over:
-            return {"error": "El juego ya terminó"}
+        # 🔥 1. Hay 10 cartas disponibles (0–9)
+        available_cards = list(range(10))
 
-        card = self.board.cards[card_id]
+        # 🔥 2. Seleccionar aleatoriamente 8 cartas distintas
+        selected = random.sample(available_cards, 8)
 
-        if card.solved or card.revealed:
-            return {"error": "Carta ya revelada o resuelta"}
+        # 🔥 3. Duplicar las cartas (un par de cada una)
+        deck = selected * 2  # ahora son 16 cartas
 
-        card.revealed = True
+        # 🔥 4. Mezclar el mazo
+        random.shuffle(deck)
 
-        if self.first_pick is None:
-            self.first_pick = card
-            return {
-                "status": "primera",
-                "card": card.to_dict(),
-                "elapsed_time": self._get_elapsed_time()
-            }
+        # 🔥 5. Construir el tablero con estructura original
+        self.board = [
+            {"id": i, "value": deck[i], "revealed": False, "solved": False}
+            for i in range(16)
+        ]
 
-        elif self.second_pick is None:
-            self.second_pick = card
-            self.moves += 1
-            return self._evaluate_turn()
+        # Variables del juego
+        self.first_card = None
+        self.solved_pairs = 0
 
-    def _evaluate_turn(self):
-        c1 = self.first_pick
-        c2 = self.second_pick
 
-        if c1.value == c2.value:
-            c1.solved = True
-            c2.solved = True
-            self.solved_pairs += 1
-            result = "match"
+    def flip(self, card_id):
+        """Voltear carta y manejar la lógica de parejas"""
+        card = self.board[card_id]
+
+        if card["revealed"] or card["solved"]:
+            return self.get_state()
+
+        card["revealed"] = True
+
+        if self.first_card is None:
+            # Es la primera carta del turno
+            self.first_card = card
         else:
-            # Voltear de nuevo
-            c1.revealed = False
-            c2.revealed = False
-            result = "no_match"
+            # Segunda carta
+            self.moves += 1
 
-        # Reset picks
-        self.first_pick = None
-        self.second_pick = None
+            if self.first_card["value"] == card["value"]:
+                # Encontró par
+                self.first_card["solved"] = True
+                card["solved"] = True
+                self.solved_pairs += 1
+            else:
+                # No coincide → ocultarlas luego
+                first = self.first_card
+                second = card
 
-        # Juego terminado
-        if self.solved_pairs == self.board.pairs:
-            self.game_over = True
-            self.end_time = time.time()
+                # Ocultarlas después de 1 segundo (simulado)
+                first["revealed"] = False
+                second["revealed"] = False
 
-        return {
-            "result": result,
-            "moves": self.moves,
-            "solved_pairs": self.solved_pairs,
-            "game_over": self.game_over,
-            "elapsed_time": self._get_elapsed_time(),
-            "board": self.board.to_dict()
-        }
+            # Reiniciar selección
+            self.first_card = None
 
-    def reset_game(self):
-        self.__init__()
+        return self.get_state()
+
 
     def get_state(self):
+        """Retorna el estado completo del juego"""
+        elapsed = round(time.time() - self.start_time, 1)
+
         return {
-            "board": self.board.to_dict(),
+            "board": self.board,
             "moves": self.moves,
-            "solved_pairs": self.solved_pairs,
-            "game_over": self.game_over,
-            "elapsed_time": self._get_elapsed_time()
+            "pairs_found": self.solved_pairs,
+            "game_over": self.solved_pairs == 8,
+            "elapsed_time": elapsed
         }
