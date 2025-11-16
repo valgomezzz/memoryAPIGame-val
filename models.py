@@ -9,58 +9,56 @@ class MemoryGame:
         # Movimientos del jugador
         self.moves = 0
 
-        # 🔥 1. Hay 10 cartas disponibles (0–9)
+        # 🔥 10 cartas disponibles (0–9)
         available_cards = list(range(10))
 
-        # 🔥 2. Seleccionar aleatoriamente 8 cartas distintas
+        # 🔥 Seleccionar aleatoriamente 8 cartas únicas
         selected = random.sample(available_cards, 8)
 
-        # 🔥 3. Duplicar las cartas (un par de cada una)
-        deck = selected * 2  # ahora son 16 cartas
+        # 🔥 Duplicar (crear pares)
+        deck = selected * 2
 
-        # 🔥 4. Mezclar el mazo
+        # 🔥 Mezclar
         random.shuffle(deck)
 
-        # 🔥 5. Construir el tablero con estructura original
+        # 🔥 Crear tablero
         self.board = [
             {"id": i, "value": deck[i], "revealed": False, "solved": False}
             for i in range(16)
         ]
 
-        # Variables del juego
+        # Cartas seleccionadas
         self.first_card = None
         self.solved_pairs = 0
 
 
-    def flip(self, card_id):
-        """Voltear carta y manejar la lógica de parejas"""
+    def flip_card(self, card_id: int):
+        """Voltear carta correctamente"""
         card = self.board[card_id]
 
+        # No permitir voltear carta resuelta o ya visible
         if card["revealed"] or card["solved"]:
             return self.get_state()
 
+        # Voltearla
         card["revealed"] = True
 
-        if self.first_card is None:
-            # Es la primera carta del turno
+        # Si no hay carta previa → es la primera del turno
+        if not self.first_card:
             self.first_card = card
+
         else:
-            # Segunda carta
+            # Segunda carta → contar movimiento
             self.moves += 1
 
+            # Si coinciden → marcar como resueltas
             if self.first_card["value"] == card["value"]:
-                # Encontró par
                 self.first_card["solved"] = True
                 card["solved"] = True
                 self.solved_pairs += 1
             else:
-                # No coincide → ocultarlas luego
-                first = self.first_card
-                second = card
-
-                # Ocultarlas después de 1 segundo (simulado)
-                first["revealed"] = False
-                second["revealed"] = False
+                # Si falló → SOLO el frontend la ocultará
+                pass
 
             # Reiniciar selección
             self.first_card = None
@@ -69,7 +67,7 @@ class MemoryGame:
 
 
     def get_state(self):
-        """Retorna el estado completo del juego"""
+        """Retorna estado completo para frontend"""
         elapsed = round(time.time() - self.start_time, 1)
 
         return {
